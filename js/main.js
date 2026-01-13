@@ -27,6 +27,11 @@ const topPipe = new Image(); topPipe.src = 'assets/top-pipe.png';
 const bottomPipe = new Image(); bottomPipe.src = 'assets/bottom-pipe.png';
 const groundImg = new Image(); groundImg.src = 'assets/ground.png';
 
+/* ================== SOUND ================== */
+const sndJump = new Audio('assets/jump.mp3');
+const sndHit = new Audio('assets/hit.mp3');
+let audioEnabled = false;
+
 /* ================== GAME STATE ================== */
 let gameStarted = false;
 let gameOver = false;
@@ -42,10 +47,13 @@ let pipes = [];
 const pipeGap = 160;
 const pipeWidth = 40;
 const pipeSpeed = 150;
-const PIPE_DISTANCE = 240; // 🔥 расстояние между парами труб
+const PIPE_DISTANCE = 260;
 
-const groundHeight = 100;
+const groundHeight = 112;
+
+/* ================== SCORE ================== */
 let score = 0;
+let bestScore = Number(localStorage.getItem('bestScore') || 0);
 
 /* ================== RESET ================== */
 function resetGame() {
@@ -70,6 +78,11 @@ canvas.addEventListener('click', handleInput);
 canvas.addEventListener('touchstart', handleInput);
 
 function handleInput(e) {
+  if (!audioEnabled) {
+    sndJump.play().catch(()=>{});
+    audioEnabled = true;
+  }
+
   const rect = canvas.getBoundingClientRect();
   const x = (e.clientX - rect.left) / scale();
   const y = (e.clientY - rect.top) / scale();
@@ -101,6 +114,7 @@ function handleInput(e) {
 
   if (gameStarted && !gameOver) {
     bird.vy = jumpPower;
+    if (audioEnabled) sndJump.play().catch(()=>{});
   }
 }
 
@@ -137,7 +151,6 @@ function loop(time) {
     bird.vy += gravity * dt;
     bird.y += bird.vy * dt;
 
-    // rotation по скорости
     bird.rotation = Math.min(
       Math.max(bird.vy / 400, -0.5),
       1.2
@@ -158,7 +171,15 @@ function loop(time) {
         score++;
       }
 
-      if (hit(p)) gameOver = true;
+      if (hit(p)) {
+        gameOver = true;
+        if (score > bestScore) {
+          bestScore = score;
+          localStorage.setItem('bestScore', bestScore);
+        }
+        if (audioEnabled) sndHit.play().catch(()=>{});
+        if (navigator.vibrate) navigator.vibrate(60);
+      }
     });
 
     pipes = pipes.filter(p => p.x > -pipeWidth);
@@ -180,73 +201,112 @@ function draw() {
     ctx.drawImage(bottomPipe, p.x, p.y + pipeGap);
   });
 
-  // 🔥 ROTATED BIRD
   ctx.save();
-  ctx.translate(
-    bird.x + bird.width / 2,
-    bird.y + bird.height / 2
-  );
-  ctx.rotate(bird.rotation);
-  ctx.drawImage(
-    birdImg,
-    -bird.width / 2,
-    -bird.height / 2,
-    bird.width,
-    bird.height
-  );
+  ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+  ctx.rotate(gameStarted ? bird.rotation : 0);
+  ctx.drawImage(birdImg, -bird.width/2, -bird.height/2, bird.width, bird.height);
   ctx.restore();
 
-  ctx.drawImage(groundImg, 0, GAME_HEIGHT - groundHeight);
+  ctx.drawImage(
+    groundImg,
+    0,
+    GAME_HEIGHT - groundHeight,
+    GAME_WIDTH,
+    groundHeight
+  );
 
+  // Счет
   ctx.fillStyle = '#fff';
-  ctx.font = '48px Arial';
-  ctx.fillText(score, GAME_WIDTH / 2 - 15, 90);
+  ctx.font = '28px "Press Start 2P"';
+  ctx.fillText(score, GAME_WIDTH / 2 - ctx.measureText(score).width/2, 80);
 
+  // Меню
   if (!gameStarted && !gameOver) {
-    overlay('  Flappy WB');
-    button(190, 260, '     Старт');
+    overlay('Flappy WB');
+    ctx.font = '20px "Press Start 2P"';
+    ctx.fillText(`Рекорд: ${bestScore}`, 175, 220);
+    button(190, 260, 'Старт');
     button(190, 320, 'Разработка');
   }
 
+  // Game Over
   if (gameOver) {
     overlay('Game Over');
-    button(190, 350, '   Рестарт');
+    ctx.font = '22px "Press Start 2P"';
+    ctx.fillText(`Рекорд: ${bestScore}`, 175, 310);
+    button(190, 350, 'Рестарт');
   }
 
+  // Dev Overlay
   if (showDevOverlay) {
     ctx.fillStyle = 'rgba(0,0,0,0.85)';
     ctx.fillRect(50, 140, 380, 360);
 
     ctx.fillStyle = '#fff';
-    ctx.font = '22px Arial';
+    ctx.font = '22px "Press Start 2P"';
     ctx.fillText('Разработчик:', 80, 200);
     ctx.fillText('Поддержать проект:', 80, 240);
     ctx.fillText('+7 928 646 95 35', 80, 280);
     ctx.fillText('(Т-Банк)', 80, 320);
     ctx.fillText('Привет Малику ❤️', 80, 360);
-    ctx.fillText('v1.0', 60, 490);
+    ctx.fillText('v1.1', 60, 490);
 
-    ctx.font = '28px Arial';
+    ctx.font = '28px "Press Start 2P"';
     ctx.fillText('✕', 395, 185);
   }
 
   ctx.restore();
 }
 
+/* ================== OVERLAY ================== */
 function overlay(text) {
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
   ctx.fillStyle = '#fff';
-  ctx.font = '36px Arial';
-  ctx.fillText(text, GAME_WIDTH / 2 - 90, 180);
+  ctx.font = '28px "Press Start 2P"';
+  ctx.fillText(text, GAME_WIDTH/2 - ctx.measureText(text).width/2, 180);
 }
 
-function button(x, y, text) {
-  ctx.fillStyle = '#555';
-  ctx.fillRect(x, y, 135, 40);
+/* ================== BUTTON ================== */
+function button(x, y, text, width=135, height=40) {
+  // фон и тень
+  ctx.fillStyle = '#333';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 6;
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#555';
+  roundRect(ctx, x, y, width, height, 8, true, true);
+
+  // текст
   ctx.fillStyle = '#fff';
-  ctx.font = '20px Arial';
-  ctx.fillText(text, x + 15, y + 27);
+  let fontSize = 20;
+  ctx.font = fontSize + 'px "Press Start 2P"';
+  while (ctx.measureText(text).width > width - 10) {
+    fontSize--;
+    ctx.font = fontSize + 'px "Press Start 2P"';
+  }
+  ctx.fillText(text, x + (width - ctx.measureText(text).width)/2, y + height/2 + fontSize/2 - 4);
+}
+
+// вспомогательная функция для закругленных кнопок
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+  if (typeof stroke === 'undefined') stroke = true;
+  if (typeof radius === 'undefined') radius = 5;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  if (stroke) ctx.stroke();
 }
 
 /* ================== START ================== */
