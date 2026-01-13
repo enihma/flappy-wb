@@ -88,7 +88,8 @@ function handleInput(e) {
   const y = (e.clientY - rect.top) / scale();
 
   if (showDevOverlay) {
-    if (x > 390 && x < 420 && y > 160 && y < 190) {
+    // Крестик по координатам
+    if (x > 395 && x < 420 && y > 155 && y < 185) {
       showDevOverlay = false;
     }
     return;
@@ -124,7 +125,9 @@ function inside(x, y, rx, ry, rw, rh) {
 
 /* ================== PIPES ================== */
 function spawnPipe() {
-  const y = Math.random() * (GAME_HEIGHT - pipeGap - groundHeight - 100) + 50;
+  const minY = 50;
+  const maxY = GAME_HEIGHT - pipeGap - groundHeight - 50;
+  const y = Math.random() * (maxY - minY) + minY;
   pipes.push({ x: GAME_WIDTH, y, passed: false });
 }
 
@@ -151,15 +154,9 @@ function loop(time) {
     bird.vy += gravity * dt;
     bird.y += bird.vy * dt;
 
-    bird.rotation = Math.min(
-      Math.max(bird.vy / 400, -0.5),
-      1.2
-    );
+    bird.rotation = Math.min(Math.max(bird.vy / 400, -0.5), 1.2);
 
-    if (
-      pipes.length === 0 ||
-      pipes[pipes.length - 1].x < GAME_WIDTH - PIPE_DISTANCE
-    ) {
+    if (pipes.length === 0 || pipes[pipes.length - 1].x < GAME_WIDTH - PIPE_DISTANCE) {
       spawnPipe();
     }
 
@@ -182,6 +179,7 @@ function loop(time) {
       }
     });
 
+    // фильтруем трубы
     pipes = pipes.filter(p => p.x > -pipeWidth);
   }
 
@@ -201,19 +199,14 @@ function draw() {
     ctx.drawImage(bottomPipe, p.x, p.y + pipeGap);
   });
 
+  // птица с вращением
   ctx.save();
   ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
   ctx.rotate(gameStarted ? bird.rotation : 0);
   ctx.drawImage(birdImg, -bird.width/2, -bird.height/2, bird.width, bird.height);
   ctx.restore();
 
-  ctx.drawImage(
-    groundImg,
-    0,
-    GAME_HEIGHT - groundHeight,
-    GAME_WIDTH,
-    groundHeight
-  );
+  ctx.drawImage(groundImg, 0, GAME_HEIGHT - groundHeight, GAME_WIDTH, groundHeight);
 
   // Счет
   ctx.fillStyle = '#fff';
@@ -252,7 +245,7 @@ function draw() {
     ctx.fillText('v1.1', 60, 490);
 
     ctx.font = '28px "Press Start 2P"';
-    ctx.fillText('✕', 395, 185);
+    ctx.fillText('✕', 395, 170);
   }
 
   ctx.restore();
@@ -270,7 +263,6 @@ function overlay(text) {
 
 /* ================== BUTTON ================== */
 function button(x, y, text, width=135, height=40) {
-  // фон и тень
   ctx.fillStyle = '#333';
   ctx.shadowColor = '#000';
   ctx.shadowBlur = 6;
@@ -279,7 +271,6 @@ function button(x, y, text, width=135, height=40) {
   ctx.strokeStyle = '#555';
   roundRect(ctx, x, y, width, height, 8, true, true);
 
-  // текст
   ctx.fillStyle = '#fff';
   let fontSize = 20;
   ctx.font = fontSize + 'px "Press Start 2P"';
@@ -290,7 +281,6 @@ function button(x, y, text, width=135, height=40) {
   ctx.fillText(text, x + (width - ctx.measureText(text).width)/2, y + height/2 + fontSize/2 - 4);
 }
 
-// вспомогательная функция для закругленных кнопок
 function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
   if (typeof stroke === 'undefined') stroke = true;
   if (typeof radius === 'undefined') radius = 5;
