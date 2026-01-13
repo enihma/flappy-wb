@@ -1,8 +1,8 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-const GAME_WIDTH = 480;
-const GAME_HEIGHT = 640;
+const GAME_WIDTH = 550;
+const GAME_HEIGHT = 820;
 
 /* ================== CANVAS ================== */
 function resizeCanvas() {
